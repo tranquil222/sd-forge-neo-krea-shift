@@ -147,6 +147,11 @@ class IntegrationTests(unittest.TestCase):
                 self.assertEqual(mapped["txt2img_krea_shift_fixed"]["value"],0)
                 self.assertEqual(mapped["txt2img_krea_shift_to"]["value"],2)
                 self.assertEqual(mapped["txt2img_krea_shift_switch"]["value"],70)
+                self.assertTrue(mapped["txt2img_krea_shift_options-checkbox"]["value"])
+            result = handler(json.dumps({"requestId":"off", "infotext":generated_infotext(
+                self.e, 1.15, extra=metadata(Options(enabled=False), []))}))
+            mapped = dict(zip((getattr(c,"elem_id",None) for c in outputs),result))
+            self.assertFalse(mapped["txt2img_krea_shift_options-checkbox"]["value"])
 
     def test_stock_xyz_cell_and_loop_apply_each_shift_and_preserve_metadata(self):
         # Execute the upstream cell body and grid loop, not a reimplementation.

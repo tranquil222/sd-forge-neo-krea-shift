@@ -38,16 +38,22 @@ class Options:
     multiple: bool = False
     fixed: float | None = None
     hr_fixed: float | None = None
+    enabled: bool = True  # Legacy API calls predate the panel's enable checkbox.
 
     @property
     def run_multiple(self):
         # Retain support for 0.2 API requests, not a mutually exclusive UI mode.
-        return self.multiple or self.mode == VALUES
+        return self.enabled and (self.multiple or self.mode == VALUES)
 
     @classmethod
     def read(cls, *args):
         if not args:
-            return cls()
+            return cls(enabled=False)
+        if len(args) == 11:
+            *args, enabled = args
+            if not enabled:
+                # Disabled panels must not validate or run a stale/empty list.
+                return cls(enabled=False)
         if len(args) == 7:
             mode, values, start, end, curve, switch, hires = args
             if mode not in (FIXED, VALUES, RAMP):
@@ -132,9 +138,15 @@ def blend_intervals(grids, shifts, start_index=0):
 
 
 def metadata(options, shifts, hires=False):
-    result = {"Krea Shift mode": RAMP, "Krea Shift from": options.start,
+    result = {"Krea Shift enabled": options.enabled,
+              "Krea Shift mode": options.mode if options.enabled else "Off"}
+    if options.hr_fixed is not None:
+        result["Krea Shift hires fixed"] = options.hr_fixed
+    if not options.enabled or options.mode != RAMP:
+        return result
+    result.update({"Krea Shift from": options.start,
               "Krea Shift to": options.end, "Krea Shift curve": options.curve,
               "Krea Shift switch": options.switch, "Krea Shift hires": options.hires,
-              "Krea Shift algorithm": "interval-v1"}
+              "Krea Shift algorithm": "interval-v1"})
     result["Hires Krea Shift steps" if hires else "Krea Shift steps"] = ", ".join(f"{v:.8g}" for v in shifts)
     return result

@@ -1,5 +1,13 @@
 # Validation
 
+## Release 0.4.0
+
+Adds the native Forge header enable checkbox, collapsed Hires/details, visibly disabled overridden values, and the **Shift from values** label when multiple runs each use a ramp. Disabled panels bypass their fixed/list/ramp settings without validating inactive inputs. Metadata restores enabled/disabled state, actual Shift and Hires values, and applicable ramp settings; old Krea PNGs remain compatible.
+
+**32 CPU checks passed locally**, including custom IIB normal/legacy transfers. The browser checks passed with the actual pinned Forge InputAccordion component and JavaScript: default-off header, nested collapsed details, disabled field styling, both list labels, combined controls, swap, and PNG/stock IIB restoration in both tabs. The 21 job checks passed against source snapshots of both local installations as well. Native XYZ Hires Shift overrides are preserved in the plugin metadata.
+
+These are CPU integration and browser checks, not GPU image-quality tests.
+
 ## Release 0.3.0
 
 Adds plugin-owned Fixed Shift and Hires. fix Shift fields, independent Run Multiple / Change during sampling checkboxes, and the **Krea2 Shift** panel name. The main-row Krea controls are hidden without changing other models' controls or editing Forge core.

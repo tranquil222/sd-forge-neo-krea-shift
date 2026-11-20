@@ -18,6 +18,9 @@ REPOS = {
         "sd_schedulers.py": "modules/sd_schedulers.py",
         "sd_samplers_common.py": "modules/sd_samplers_common.py",
         "scripts.py": "modules/scripts.py",
+        "ui_components.py": "modules/ui_components.py",
+        "gradio_extensions.py": "modules/gradio_extensions.py",
+        "inputAccordion.js": "javascript/inputAccordion.js",
     }),
     "iib": ("zanllp/infinite-image-browsing", "main", {
         "iib_setup.py": "scripts/iib_setup.py",

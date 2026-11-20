@@ -4,13 +4,15 @@ Self-contained Krea 2 Shift controls for [Forge Neo](https://github.com/Haoming0
 
 The plugin supplies its own **Fixed Shift** and **Hires. fix Shift** value fields. It does not require a previously modified Forge or a visible main-row Krea Shift slider. Native processing fields remain the internal bridge for PNG metadata, APIs, and X/Y/Z; the separate main-row controls are hidden for the krea preset. Other models' controls are unchanged. No model downloads, extra inference dependencies, or edits to Forge source files.
 
-**0.3.0:** **Run Multiple** and **Change during sampling** are independent checkboxes. Enable both to ramp every listed starting Shift toward the shared **Shift to** value. With both off, the plugin's **Fixed Shift** value is used.
+**0.4.0:** The **Krea2 Shift** header has an enable checkbox (off by default). When off, the plugin's fixed/list/ramp settings are bypassed; Forge's native Shift/API/X/Y/Z values are left alone. The checkbox state is saved and restored from image metadata. Hires controls and explanations are under the collapsed **Hires. fix & details** section.
+
+With the panel enabled, **Run Multiple** and **Change during sampling** are independent checkboxes. Enable both to ramp every listed starting Shift toward the shared **Shift to** value; the list label changes to **Shift from values**. Fixed Shift is disabled and visibly greyed out whenever either option overrides it. With both off, **Fixed Shift** is used. The separate From field is also greyed out when the list supplies it.
 
 ## Install
 
 1. In Forge Neo, open **Extensions → Install from URL**.
 2. Paste `https://github.com/tranquil222/sd-forge-neo-krea-shift` and install.
-3. **Fully restart Forge**, then select the **krea** UI preset.
+3. **Fully restart Forge**, refresh the browser, then select the **krea** UI preset and enable the **Krea2 Shift** panel checkbox.
 
 Alternatively, run this from your Forge folder:
 
@@ -54,7 +56,7 @@ You can still select **X/Y/Z plot** and use its axes for prompts or other settin
 
 Enable **Change during sampling** at the same time to run, for example, `0.5 → 2`, `0.65 → 2`, and `1.15 → 2` with **Shift to = 2**. The list supplies each **Shift from**, so the individual From box is disabled while Run Multiple is on. All runs share the chosen transition and Hires behavior.
 
-An individual list image saves its actual `Shift` and, if used, its own ramp, plus the list as provenance. PNG Info/IIB restores that one image's fixed Shift or ramp and turns **Run Multiple off**, rather than accidentally repeating the whole comparison list.
+An individual list image saves its actual `Shift` and, if used, its own ramp, plus the list as provenance. PNG Info/IIB restores that one image's fixed Shift or ramp and turns **Run Multiple off**, rather than accidentally repeating the whole comparison list. The original list text is also restored for reuse if you turn Run Multiple back on.
 
 ## Change Shift within one image
 
@@ -76,7 +78,7 @@ For **img2img**, the ramp spans only the intervals actually sampled and preserve
 
 Use a sigma-based sampler, such as **Euler**, with **Simple** or **Beta** for the tested paths. DDIM/PLMS, adaptive samplers that ignore the full sigma grid, and another custom noise-schedule override cannot use the ramp. Fixed Shift and list mode retain the native sampler behavior.
 
-PNG metadata records the mode, endpoints, transition, switch point, Hires option, per-step contributions and `interval-v1` algorithm. **PNG Info and ordinary IIB Send** restore these through the extension's paste fields. Existing 0.2.0 ramp PNGs remain compatible. Pasting an older/fixed image turns off a previously selected ramp. API clients should use the always-on script name **Krea2 Shift** and the current argument order shown in `neo_krea_shift/ui.py`.
+PNG metadata records the enabled state, actual Shift, Hires Shift, mode, and applicable endpoints, transition, switch point, Hires ramp option, per-step contributions and `interval-v1` algorithm. **PNG Info and ordinary IIB Send** restore these through the extension's paste fields. Existing fixed Krea and 0.2/0.3 ramp PNGs automatically enable the panel on paste; a new PNG explicitly saved with the panel off restores it off. Pasting an older/fixed image turns off a previously selected ramp. API clients should use the always-on script name **Krea2 Shift** and the current argument order shown in `neo_krea_shift/ui.py`; the final argument is now the enabled boolean. Legacy 7- and 10-argument calls remain supported.
 
 ## Shift scale
 

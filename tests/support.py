@@ -2,12 +2,15 @@
 import ast
 import copy
 import importlib.util
+import inspect
 import json
 import logging
 import os
 from pathlib import Path
 import re
 import sys
+import warnings
+from functools import wraps
 from types import ModuleType, SimpleNamespace as NS
 
 import gradio as gr
@@ -44,6 +47,19 @@ def import_source(filename):
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
+
+
+# Use Forge's real Gradio compatibility adapter and header-checkbox component.
+gradio_compat = module("_gradio_compat", gr=gr, wraps=wraps, inspect=inspect, warnings=warnings,
+                      GradioDeprecationWarning=DeprecationWarning)
+definitions("gradio_extensions.py", {"EventWrapper", "repair"}, gradio_compat)
+# Neo disables this decorator before constructing its custom UI components.
+# Otherwise Gradio saves setup=True and incorrectly rebuilds accordion events on paste.
+gr.component_meta.updateable = lambda fn: fn
+gradio_compat.repair(gr.Checkbox)
+ui_components = module("modules.ui_components", gr=gr, wraps=wraps, __file__=str(SOURCE/"ui_components.py"))
+sys.modules["modules.ui_components"] = ui_components
+definitions("ui_components.py", {"InputAccordionImpl", "InputAccordion"}, ui_components)
 
 
 def make_environment():

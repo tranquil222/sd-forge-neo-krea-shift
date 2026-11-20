@@ -301,8 +301,8 @@ class JobTests(unittest.TestCase):
             with gr.Blocks():
                 script=entry.Script()
                 self.assertEqual(script.title(),"Krea2 Shift")
-                self.assertEqual(len(script.ui(False)),10)
-                self.assertEqual(len(script.infotext_fields),10)
+                self.assertEqual(len(script.ui(False)),11)
+                self.assertEqual(len(script.infotext_fields),11)
             self.assertTrue(self.e.engine().use_shift)
             callbacks["script_unloaded"]()
             self.assertFalse(self.e.engine().use_shift)
@@ -361,6 +361,50 @@ class JobTests(unittest.TestCase):
         self.assertEqual(options.mode,RAMP)
         self.assertEqual(options.fixed,.9)
         self.assertEqual(options.hr_fixed,.65)
+
+    def test_disabled_panel_does_not_apply_fixed_list_or_ramp(self):
+        self.p._neo_krea_shift_options=Options(enabled=False,mode=RAMP,multiple=True,
+            values="",fixed=8,hr_fixed=9,start=2,end=0,hires=True)
+        self.engine.set_shift(.9)
+        baseline=self.original_sigmas(self.sampler,self.p,8)
+        result=self.processing.process_images_inner(self.p)
+        self.assertEqual(len(result.images),1)
+        self.assertEqual(self.seen[0][1],.9)
+        self.assertEqual(self.p.hr_distilled_cfg,1.39)
+        self.assertTrue(torch.equal(self.seen[0][3],baseline))
+        self.assertNotIn("Krea Shift steps",self.p.extra_generation_params)
+        data=self.e.info.parse_generation_parameters(result.infotexts[0])
+        with gr.Blocks():
+            _,fields=controls(gr)
+        restored=Options.read(*(fn(data) if callable(fn) else data.get(fn,c.value) for c,fn in fields))
+        self.assertFalse(restored.enabled)
+        self.assertEqual(data["Krea Shift enabled"],"False")
+        # Disabled UI ignores even invalid inactive settings.
+        self.assertFalse(Options.read(None,True,"",True,None,None,"bad",None,True,None,False).enabled)
+
+    def test_fixed_enable_and_hires_fields_round_trip(self):
+        self.p._neo_krea_shift_options=Options(fixed=0,hr_fixed=.65)
+        result=self.processing.process_images_inner(self.p)
+        data=self.e.info.parse_generation_parameters(result.infotexts[0])
+        with gr.Blocks():
+            _,fields=controls(gr)
+        restored=Options.read(*(fn(data) if callable(fn) else data.get(fn,c.value) for c,fn in fields))
+        self.assertTrue(restored.enabled)
+        self.assertEqual(restored.fixed,0)
+        self.assertEqual(restored.hr_fixed,.65)
+
+    def test_hires_xyz_override_is_preserved_in_plugin_metadata(self):
+        self.p._neo_krea_shift_options=Options(mode=RAMP,fixed=.5,hr_fixed=.65,start=0,end=2)
+        runner=self.Runner()
+        def axis(p):
+            child=copy(p)
+            child.is_xyz_pass=True
+            child.hr_distilled_cfg=1.39
+            return self.processing.process_images_inner(child)
+        runner.selectable_scripts=[NS(args_from=1,args_to=1,run=axis)]
+        result=runner.run(self.p,1)
+        data=self.e.info.parse_generation_parameters(result.infotexts[0])
+        self.assertEqual(float(data["Krea Shift hires fixed"]),1.39)
 
 
 if __name__=="__main__":unittest.main()

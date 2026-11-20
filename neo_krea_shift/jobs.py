@@ -17,17 +17,17 @@ def options_for(p):
             if getattr(script, "neo_krea_shift_controls", False):
                 options = Options.read(*p.script_args[script.args_from:script.args_to])
                 break
-    options = options or Options()
+    options = options or Options(enabled=False)
     # Native XYZ axes run after preparation. A Shift axis varies ramp From;
     # prompt-only axes leave the prepared starting value unchanged.
-    if options.mode == RAMP and getattr(p, "_neo_shift_prepared", False) and getattr(p, "is_xyz_pass", False):
+    if options.enabled and options.mode == RAMP and getattr(p, "_neo_shift_prepared", False) and getattr(p, "is_xyz_pass", False):
         options = replace(options, start=shift_value(p.distilled_cfg_scale))
     return options
 
 
 def prepare_request(p, options):
     """Apply plugin fields once, before selectable scripts apply their axes."""
-    if getattr(p, "_neo_shift_prepared", False):
+    if not options.enabled or getattr(p, "_neo_shift_prepared", False):
         return
     if options.mode == RAMP:
         p.distilled_cfg_scale = options.start
@@ -120,14 +120,17 @@ class JobHooks:
             if options.run_multiple:
                 # Each child re-enters for its ramp, but cannot expand again.
                 return hooks.sequence(p, options, lambda child: inner(child, *args, **kwargs))
-            if options.mode == RAMP:
+            p.extra_generation_params = dict(p.extra_generation_params)
+            p.extra_generation_params.update(metadata(options, []))
+            if options.enabled and hasattr(p, "hr_distilled_cfg"):
+                # Preserve an actual XYZ Hires Shift override, not the original UI field.
+                p.extra_generation_params["Krea Shift hires fixed"] = p.hr_distilled_cfg
+            if options.enabled and options.mode == RAMP:
                 names = [getattr(p, "sampler_name", "")]
                 if options.hires and getattr(p, "enable_hr", False):
                     names.append(getattr(p, "hr_sampler_name", ""))
                 if any(str(name).lower() in ("ddim", "plms") for name in names):
                     raise ValueError("Krea Shift ramp needs a sigma-based sampler such as Euler; DDIM/PLMS do not use this schedule.")
-                p.extra_generation_params = dict(p.extra_generation_params)
-                p.extra_generation_params.update(metadata(options, []))
                 old_shift, old_hr = p.distilled_cfg_scale, getattr(p, "hr_distilled_cfg", None)
                 p.distilled_cfg_scale = options.start
                 if options.hires and old_hr is not None:
@@ -162,7 +165,7 @@ class JobHooks:
                 return original_sigmas(sampler, p, steps)
             options = options_for(p)
             hires = bool(getattr(p, "is_hr_pass", False))
-            if options.mode != RAMP or (hires and not options.hires):
+            if not options.enabled or options.mode != RAMP or (hires and not options.hires):
                 return original_sigmas(sampler, p, steps)
             if "sigmas" not in inspect.signature(sampler.func).parameters:
                 raise ValueError("Krea Shift ramp needs a sampler that uses the full sigma schedule, such as Euler.")
@@ -183,7 +186,9 @@ class JobHooks:
                         set_krea_shift(p.sd_model, mu, runtime.predictor_type)
                         grids[mu] = original_sigmas(sampler, p, steps)
                 result = blend_intervals(grids, shifts, start)
-                p.extra_generation_params.update(metadata(options, shifts, hires))
+                details = metadata(options, shifts, hires)
+                details.pop("Krea Shift hires fixed", None)  # Captured before the pass by inner().
+                p.extra_generation_params.update(details)
                 p.extra_generation_params["Hires Shift" if hires else "Shift"] = options.start
                 return result
             finally:
@@ -193,7 +198,8 @@ class JobHooks:
 
         @wraps(original_i2i)
         def img2img(sampler, p, x, noise, conditioning, unconditional_conditioning, steps=None, image_conditioning=None):
-            if not hooks.is_krea(p) or options_for(p).mode != RAMP:
+            options = options_for(p) if hooks.is_krea(p) else None
+            if options is None or not options.enabled or options.mode != RAMP:
                 return original_i2i(sampler, p, x, noise, conditioning, unconditional_conditioning,
                                     steps=steps, image_conditioning=image_conditioning)
             old = getattr(p, "_neo_shift_suffix", None)

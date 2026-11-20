@@ -29,7 +29,7 @@ def install():
         JobHooks(runtime, processing, scripts, KDiffusionSampler,
                  sd_samplers_common.setup_img2img_steps).install()
         _runtime = runtime
-        logging.getLogger(__name__).info("Krea2 Shift enabled: fixed Shift, multiple runs, per-step ramps, PNG/IIB and XYZ.")
+        logging.getLogger(__name__).info("Krea2 Shift loaded. Enable its panel checkbox to apply fixed Shift, multiple runs or per-step ramps.")
     except (ImportError, AttributeError) as error:
         if runtime is not None:
             runtime.uninstall()

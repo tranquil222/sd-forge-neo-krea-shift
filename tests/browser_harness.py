@@ -9,7 +9,7 @@ from pathlib import Path
 import gradio as gr
 from PIL import Image, PngImagePlugin
 
-from support import make_environment, generated_infotext, definitions, module
+from support import make_environment, generated_infotext, definitions, module, SOURCE
 from neo_krea_shift.ui import controls
 from neo_krea_shift.schedules import Options, RAMP, metadata
 
@@ -34,7 +34,12 @@ definitions("iib_tool.py", {"read_sd_webui_gen_info_from_image"}, iib)
 definitions("iib_setup.py", {"on_ui_tabs"}, iib)
 
 with gr.Blocks(analytics_enabled=False,
+               head="<script>window.onUiLoaded = fn => { window.setupTestAccordions = fn; }; "
+                    "window.gradioApp = () => document; "
+                    "window.updateInput = el => el.dispatchEvent(new Event('input', {bubbles: true}));\n" +
+                    (SOURCE/"inputAccordion.js").read_text() + "</script>",
                css=(Path(__file__).resolve().parents[1]/"style.css").read_text()) as demo:
+    demo.load(fn=None, js="() => { window.setupTestAccordions(); }")
     gr.Markdown("Krea2 Shift integration test — stock Neo functions / stock IIB bridge")
     preset = gr.Dropdown(["krea", "flux"], value="krea", label="UI Preset", elem_id="forge_ui_preset")
     env.runtime.after_component(preset)

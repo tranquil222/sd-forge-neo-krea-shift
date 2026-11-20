@@ -6,3 +6,14 @@
     min-height: 42px;
     align-self: flex-end;
 }
+
+/* Gradio makes Number fields non-editable without dimming them. */
+.krea-shift-value:has(input:disabled),
+.krea-shift-value:has(input[readonly]) {
+    opacity: 0.4 !important;
+    filter: grayscale(1);
+}
+.krea-shift-value input:disabled,
+.krea-shift-value input[readonly] {
+    cursor: not-allowed !important;
+}
