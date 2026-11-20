@@ -6,7 +6,7 @@ FIXED = "Fixed"
 VALUES = "One image per value"
 RAMP = "Change during sampling"
 CURVES = ("Linear", "Smooth ease in/out", "Ease in", "Ease out",
-          "Logarithmic", "Exponential", "Hold then switch")
+          "Logarithmic", "Exponential", "Reverse exponential", "Hold then switch")
 
 
 def shift_value(value):
@@ -99,6 +99,8 @@ class Options:
                 t = math.log1p(9 * t) / math.log(10)
             elif self.curve == "Exponential":
                 t = math.expm1(math.log(10) * t) / 9
+            elif self.curve == "Reverse exponential":
+                t = -math.expm1(-math.log(10) * t) / .9
             elif self.curve == "Hold then switch":
                 t = float(t >= self.switch / 100)
             values.append(self.start + (self.end - self.start) * t)

@@ -6,7 +6,9 @@ The plugin supplies its own **Fixed Shift** and **Hires. fix Shift** value field
 
 **0.4.0:** The **Krea2 Shift** header has an enable checkbox (off by default). When off, the plugin's fixed/list/ramp settings are bypassed; Forge's native Shift/API/X/Y/Z values are left alone. The checkbox state is saved and restored from image metadata. Hires controls and explanations are under the collapsed **Hires. fix & details** section.
 
-**0.4.1:** Run Multiple now uses one overall progress total, including batches, Hires and nested prompt XYZ plots. With the compatible Neo Queue extension installed, each generated image has its own queue row and the entire Shift list is included in queued step totals. **Run Multiple** sits below **Change during sampling** and its transition controls.
+**0.4.1:** Run Multiple now uses one overall progress total, including batches, Hires and nested prompt XYZ plots. With the compatible Neo Queue extension installed, each generated image has its own queue row and the entire Shift list is included in queued step totals.
+
+**0.4.2:** Adds **Reverse exponential** (fast start, gradual finish) and restores **Run Multiple** and its list above **Change during sampling**. Queue checks cover independently captured Shift settings and interrupt/continue behavior.
 
 With the panel enabled, **Run Multiple** and **Change during sampling** are independent checkboxes. Enable both to ramp every listed starting Shift toward the shared **Shift to** value; the list label changes to **Shift from values**. Fixed Shift is disabled and visibly greyed out whenever either option overrides it. With both off, **Fixed Shift** is used. The separate From field is also greyed out when the list supplies it.
 
@@ -36,7 +38,7 @@ Requires a recent **Neo branch with native Krea 2 support and `PredictionFlux`**
 | X/Y/Z plot | Use the existing **Shift** axis. Each cell changes the actual schedule and saves its own value. |
 | Preset changes | Forge's other preset defaults still work. The plugin's own values remain independent; preset callbacks do not overwrite pasted Shift settings. |
 | Comma-separated Shift list | One run per value, preserving order and using the same starting seed. Works alongside a prompt X/Y/Z plot. |
-| Within-image ramp | From → To over the steps actually sampled, in either direction, with seven transition choices. |
+| Within-image ramp | From → To over the steps actually sampled, in either direction, with eight transition choices. |
 
 [Infinite Image Browsing](https://github.com/zanllp/sd-webui-infinite-image-browsing) is optional. **Send only prompt** intentionally does not restore generation settings. An image must still contain its original generation metadata; a screenshot cannot restore it.
 
@@ -58,6 +60,8 @@ You can still select **X/Y/Z plot** and use its axes for prompts or other settin
 
 For example, four Shift values at 14 steps (batch count/size 1, no Hires) mean **56 total steps**, with a separate 14-step sampling pass for each image. The optional Neo Queue adapter plans distinct image rows at capture time, preserves their previews/results, supports removal of future rows, and keeps the comparison seed pattern when requeued. It does not modify Neo Queue files or remove that extension's existing restrictions on selectable scripts. Without Neo Queue, the ordinary Forge progress display still counts the full Shift list.
 
+The adapter automatically activates only when a compatible **Neo Queue** plugin is installed; Krea2 Shift neither installs a queue nor requires one. Each click of **Add to Queue & Generate** captures the current Shift settings (enabled state, fixed value, list, ramp endpoints, transition, and Hires settings). Later control changes do not alter already queued jobs. A Run Multiple list belongs to that one queue job: **Interrupt & continue** stops the current list, keeps finished results, and lets the queue advance to its next job according to Auto-continue/Pause. It does not mean “skip only this Shift value.”
+
 Enable **Change during sampling** at the same time to run, for example, `0.5 → 2`, `0.65 → 2`, and `1.15 → 2` with **Shift to = 2**. The list supplies each **Shift from**, so the individual From box is disabled while Run Multiple is on. All runs share the chosen transition and Hires behavior.
 
 An individual list image saves its actual `Shift` and, if used, its own ramp, plus the list as provenance. PNG Info/IIB restores that one image's fixed Shift or ramp and turns **Run Multiple off**, rather than accidentally repeating the whole comparison list. The original list text is also restored for reuse if you turn Run Multiple back on.
@@ -71,10 +75,12 @@ Use the **⇄** button between From and To to reverse the endpoints. It is disab
 - **Linear**: even transition.
 - **Smooth ease in/out**: slower near both ends.
 - **Ease in / Ease out**: transition later / earlier.
-- **Logarithmic / Exponential**: stronger early / late transition; both allow a zero endpoint.
+- **Logarithmic**: stronger early transition.
+- **Exponential**: starts slowly, then speeds up toward To.
+- **Reverse exponential**: starts quickly, then gradually settles toward To; the time-mirrored exponential curve, not just swapped endpoints.
 - **Hold then switch**: hold From, then switch toward To at **Switch at (%)**.
 
-For example, From `0.5`, To `1.15`, 8 steps combines step spacing from those Shifts in that direction **within one generated image**. Reverse the endpoints to reverse the transition. The first interval's Shift contribution is From and the last is To; a one-step pass uses From only. Try the Shift whose composition you like first and the Shift whose texture you like last, but those characteristics are not independent or guaranteed to transfer.
+All transitions allow a zero endpoint and work upward or downward. For example, From `0.5`, To `1.15`, 8 steps combines step spacing from those Shifts in that direction **within one generated image**. Reverse the endpoints to reverse the transition. The first interval's Shift contribution is From and the last is To; a one-step pass uses From only. Try the Shift whose composition you like first and the Shift whose texture you like last, but those characteristics are not independent or guaranteed to transfer.
 
 This is an **experimental noise-schedule blend**, not CFG scheduling, a model change, or an image blend. Krea Shift determines the noise grid before sampling. Directly splicing grids can make noise increase at a transition. This extension instead takes each interval width from the native grid for that step's Shift, then normalizes those widths across the pass. Noise remains descending and finishes at the native endpoint. The normalization means the ramp is **not identical to part of either fixed-Shift run**. Equal From/To reproduces the native fixed-Shift schedule exactly.
 

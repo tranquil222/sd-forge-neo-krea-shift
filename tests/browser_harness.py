@@ -26,6 +26,11 @@ meta = PngImagePlugin.PngInfo()
 meta.add_text("parameters", generated_infotext(env, 0, .9,
               extra=metadata(ramp_options, ramp_options.progression(8))))
 Image.new("RGB", (16,16), "orange").save(artifacts / "shift-ramp.png", pnginfo=meta)
+reverse_options = Options(mode=RAMP, start=0, end=2, curve="Reverse exponential", hires=True)
+meta = PngImagePlugin.PngInfo()
+meta.add_text("parameters", generated_infotext(env, 0, .9,
+              extra=metadata(reverse_options, reverse_options.progression(8))))
+Image.new("RGB", (16,16), "orange").save(artifacts / "shift-reverse.png", pnginfo=meta)
 
 iib = module("_test_iib", gr=gr, Image=Image, send=env.info, locale="en",
              send_img_path={}, logger=logging.getLogger("iib-test"))

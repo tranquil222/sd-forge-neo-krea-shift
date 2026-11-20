@@ -128,6 +128,16 @@ class JobTests(unittest.TestCase):
                 self.ramp(start=mu, end=mu)
                 self.assertTrue(torch.equal(self.sampler.get_sigmas(self.p, 8), expected))
 
+    def test_reverse_exponential_changes_early_and_mirrors_exponential_in_time(self):
+        for start, end in ((0, 2), (2, 0)):
+            values = Options(mode=RAMP, start=start, end=end, curve="Reverse exponential").progression(8)
+            opposite = Options(mode=RAMP, start=end, end=start, curve="Exponential").progression(8)
+            self.assertEqual((values[0], values[-1]), (start, end))
+            changes = [abs(b-a) for a,b in zip(values, values[1:])]
+            self.assertTrue(all(a > b for a,b in zip(changes, changes[1:])))
+            for value, mirrored in zip(values, reversed(opposite)):
+                self.assertAlmostEqual(value, mirrored)
+
     def test_actual_img2img_sampler_receives_ramp_over_sampled_suffix(self):
         self.engine.set_shift(.5)
         baseline = self.original_sigmas(self.sampler, self.p, 8)[3:]
@@ -171,18 +181,19 @@ class JobTests(unittest.TestCase):
         self.assertTrue(torch.equal(grid, self.original_sigmas(self.sampler, self.p, 8)))
 
     def test_ramp_settings_round_trip_real_writer_and_paste_fields(self):
-        self.ramp(start=0, end=2, curve="Hold then switch", switch=70, hires=True)
-        result = self.processing.process_images_inner(self.p)
-        params = self.e.info.parse_generation_parameters(result.infotexts[0])
         with gr.Blocks():
             _, fields = controls(gr)
         def restore(data):
             return Options.read(*(fn(data) if callable(fn) else data.get(fn,c.value) for c,fn in fields))
-        pasted = restore(params)
-        for attr in ("mode","start","end","curve","switch","hires"):
-            self.assertEqual(getattr(pasted,attr),getattr(self.p._neo_krea_shift_options,attr))
-        self.assertEqual(pasted.fixed,0)
-        self.assertEqual(params["Krea Shift algorithm"], "interval-v1")
+        for curve in ("Hold then switch", "Reverse exponential"):
+            self.ramp(start=0, end=2, curve=curve, switch=70, hires=True)
+            result = self.processing.process_images_inner(self.p)
+            params = self.e.info.parse_generation_parameters(result.infotexts[0])
+            pasted = restore(params)
+            for attr in ("mode","start","end","curve","switch","hires"):
+                self.assertEqual(getattr(pasted,attr),getattr(self.p._neo_krea_shift_options,attr))
+            self.assertEqual(pasted.fixed,0)
+            self.assertEqual(params["Krea Shift algorithm"], "interval-v1")
         old = self.e.info.parse_generation_parameters(generated_infotext(self.e, .65))
         self.assertEqual(restore(old).mode, FIXED)
         self.assertEqual(restore(old).fixed,.65)

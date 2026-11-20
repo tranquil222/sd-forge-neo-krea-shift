@@ -11,6 +11,7 @@ from PIL import Image
 from support import make_environment, module
 from neo_krea_shift.progress import SequenceProgress
 from neo_krea_shift.queue_compat import install
+from neo_krea_shift.schedules import Options, FIXED, RAMP
 
 
 class ProgressTests(unittest.TestCase):
@@ -78,7 +79,7 @@ class QueueProgressTests(unittest.TestCase):
         shared.prompt_styles = NS(apply_styles_to_prompt=lambda p,s:p, apply_negative_styles_to_prompt=lambda p,s:p)
         self.state = shared.state
         self.state.__dict__.update(job_count=4, job_no=0, sampling_step=0, preview_step=0,
-            sampling_steps=14, time_start=0, interrupted=False, skipped=False)
+            sampling_steps=14, time_start=0, interrupted=False, stopping_generation=False, skipped=False)
         stubs = {"modules":module("modules", shared=shared, progress=NS(current_task="test"),
                     processing=NS(get_fixed_seed=lambda x:int(x)),
                     rng=NS(ImageRNG=lambda *a,**kw:NS()),
@@ -93,7 +94,11 @@ class QueueProgressTests(unittest.TestCase):
             txt2img_styles=[], txt2img_steps=14, txt2img_cfg_scale=1, txt2img_sampling="Euler",
             txt2img_scheduler="Simple",txt2img_width=1024,txt2img_height=1024,
             txt2img_hr=False,txt2img_hires_steps=0,txt2img_subseed_show=False,txt2img_subseed_strength=0,
-            txt2img_krea_shift_multiple=True,txt2img_krea_shift_values="0.1,0.2,0.4,0.5")
+            txt2img_krea_shift_multiple=True,txt2img_krea_shift_values="0.1,0.2,0.4,0.5",
+            txt2img_krea_shift_fixed=.65,txt2img_krea_shift_changing=False,
+            txt2img_krea_shift_from=.5,txt2img_krea_shift_to=2,
+            txt2img_krea_shift_curve="Linear",txt2img_krea_shift_switch=50,
+            txt2img_krea_shift_hires=False,txt2img_krea_shift_hr_fixed=1.15)
         defaults["txt2img_krea_shift_options-checkbox"] = True
         self.values = list(defaults.values())
         self.queue.positions = {key:i for i,key in enumerate(defaults)}
@@ -169,6 +174,63 @@ class QueueProgressTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.enqueue()
         self.assertEqual(self.queue.store.jobs,[])
+
+    def test_queue_click_snapshots_every_shift_control_independently(self):
+        from neo_queue.runtime import QueueRuntime
+        # Same order passed by the always-on script, independent of UI layout.
+        names = ("fixed", "multiple", "values", "changing", "from", "to", "curve",
+                 "switch", "hires", "hr_fixed", "options-checkbox")
+        captures = (
+            (.65, False, "", False, .5, 2, "Linear", 50, False, .9, True),
+            (.8, True, "0,.2,.4", True, .1, 2, "Reverse exponential", 25, True, .7, True),
+            (1.1, False, "2,.5", True, 2, 0, "Exponential", 75, False, 1.3, True),
+            (1.5, True, "", True, 3, .5, "Ease out", 40, True, 1.4, False),
+        )
+        jobs = []
+        for index, settings in enumerate(captures):
+            self.values[self.queue.positions["task"]] = f"task(click-{index})"
+            self.values[self.queue.positions["txt2img_prompt"]] = f"scene {index}"
+            for name, value in zip(names, settings):
+                self.values[self.queue.positions["txt2img_krea_shift_" + name]] = value
+            jobs.append(self.queue.enqueue(self.values,["model",[],"Automatic","krea"]))
+        # Change every live input again; read persisted jobs, not return objects.
+        self.values[:] = [None] * len(self.values)
+        reloaded = QueueRuntime(self.temp.name)
+        reloaded.schema = self.queue.schema
+        for index, (job, settings, rows) in enumerate(zip(jobs, captures, (1,3,1,1))):
+            saved = reloaded.store.get(job["id"])
+            decoded = reloaded.decode_job_values(saved["payload"])
+            restored = tuple(decoded[self.queue.positions["txt2img_krea_shift_" + name]] for name in names)
+            self.assertEqual(restored, settings)
+            self.assertEqual(Options.read(*restored), Options.read(*settings))
+            self.assertEqual(decoded[self.queue.positions["txt2img_prompt"]], f"scene {index}")
+            self.assertEqual(len(saved["rows"]), rows)
+        self.assertEqual(Options.read(*captures[0]).mode, FIXED)
+        self.assertEqual(Options.read(*captures[1]).mode, RAMP)
+        self.assertTrue(Options.read(*captures[1]).run_multiple)
+        self.assertFalse(Options.read(*captures[3]).enabled)
+
+    def test_interrupt_current_list_keeps_finished_image_and_advances_to_next_job(self):
+        job = self.enqueue(native=True)
+        self.values[self.queue.positions["task"]] = "task(next-click)"
+        self.values[self.queue.positions["txt2img_krea_shift_values"]] = "1,2"
+        following = self.queue.enqueue(self.values,["model",[],"Automatic","krea"])
+        p = self.child(0)
+        self.queue.update_batch(p)
+        self.queue.sampler_started(p,14)
+        self.state.preview_step = 14
+        self.queue.sampler_finished(p)
+        image = Image.new("RGB", (8,8))
+        self.queue.image_processed(p,NS(image=image))
+        self.state.interrupted = True
+        self.queue.finish_native(job, response=[[image], "{}", "", "", ""])
+        ended = self.queue.store.get(job["id"])
+        self.assertEqual(ended["status"], "stopped")
+        self.assertEqual([row["status"] for row in ended["rows"]], ["completed"] + ["not generated"]*3)
+        self.assertTrue(Path(ended["rows"][0]["image_path"]).is_file())
+        self.assertFalse(self.queue.store.paused)
+        self.assertEqual(self.queue.store.claim()["id"], following["id"])
+        self.assertIsNone(self.queue.external)
 
     def test_multi_image_batches_and_hires_have_distinct_slots_and_step_totals(self):
         for name,value in (("txt2img_batch_count",2),("txt2img_batch_size",2),

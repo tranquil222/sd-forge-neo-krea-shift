@@ -1,5 +1,13 @@
 # Validation
 
+## Release 0.4.2
+
+**44 CPU checks passed locally**, including the optional custom IIB and real Neo Queue checks. Added coverage confirms that separate queue clicks preserve all Shift controls independently after subsequent UI changes and a disk reload, including fixed, combined list/ramp, descending ramp, Hires, and disabled-panel settings. Interrupting the current list retains its completed image and makes the next queued job eligible to run.
+
+Reverse exponential is checked for a fast start and gradual finish in both directions, endpoint preservation, and time symmetry with Exponential. The existing native Simple/Beta schedule checks now cover all eight transitions, and the native metadata round-trip check includes the new curve.
+
+Headless Chrome/Gradio browser checks passed: restored Run Multiple-before-Change layout, Reverse exponential selection and stock IIB restoration, existing PNG Info transfers to both tabs, enabled state, greyed-out overrides, dynamic labels, and From/To swap. These are CPU integration and browser checks, not GPU inference or image-quality tests. No queue source files or live Forge processes were changed by these checks.
+
 ## Release 0.4.1
 
 **41 CPU checks passed locally**, including the optional custom IIB and real Neo Queue integration tests. Coverage includes four 14-step runs reporting 56 total steps and distinct current rows, multiple-image batches plus Hires, captured batch settings not being multiplied twice, normal Generate, disabled panels, removed rows, requeue seed patterns, native prompt XYZ counts and exact XYZ step totals. Temporary progress hooks are restored after exceptions. The 9 progress/queue checks also passed against the development copy's Queue installation; the 21 job checks passed against the main-copy source snapshot.
