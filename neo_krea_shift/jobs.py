@@ -6,6 +6,7 @@ import inspect
 
 from .runtime import set_krea_shift
 from .schedules import Options, FIXED, RAMP, blend_intervals, metadata, parse_values, shift_value
+from .progress import SequenceProgress
 
 
 def options_for(p):
@@ -86,23 +87,30 @@ class JobHooks:
     def is_krea(self, p):
         return isinstance(p.sd_model, self.runtime.engine_class)
 
-    def sequence(self, p, options, callback):
+    def sequence(self, p, options, callback, scripted=False):
         self.processing.fix_seed(p)
         results = []
-        for value in parse_values(options.values):
-            state = self.runtime.shared.state
-            if getattr(state, "interrupted", False) or getattr(state, "stopping_generation", False):
-                break
-            child_options = replace(options, mode=RAMP if options.mode == RAMP else FIXED,
-                                    multiple=False, values="", fixed=value,
-                                    start=value if options.mode == RAMP else options.start)
-            child = clone_job(p, child_options)
-            child.distilled_cfg_scale = value
-            child.extra_generation_params["Krea Shift mode"] = child_options.mode
-            child.extra_generation_params["Krea Shift list"] = options.values
-            part = callback(child)
-            if part is not None:
-                results.append(part)
+        values = parse_values(options.values)
+        from .queue_compat import prepare_active_queue
+        prepare_active_queue(p, values)
+        with SequenceProgress(self.runtime.shared, p, len(values), scripted, self.img2img_steps) as progress:
+            for index, value in enumerate(values):
+                state = self.runtime.shared.state
+                if getattr(state, "interrupted", False) or getattr(state, "stopping_generation", False):
+                    break
+                progress.begin(index)
+                child_options = replace(options, mode=RAMP if options.mode == RAMP else FIXED,
+                                        multiple=False, values="", fixed=value,
+                                        start=value if options.mode == RAMP else options.start)
+                child = clone_job(p, child_options)
+                child._neo_shift_progress = progress
+                child._neo_shift_row_offset = index * p.n_iter * p.batch_size
+                child.distilled_cfg_scale = value
+                child.extra_generation_params["Krea Shift mode"] = child_options.mode
+                child.extra_generation_params["Krea Shift list"] = options.values
+                part = callback(child)
+                if part is not None:
+                    results.append(part)
         # Return a valid empty Processed on interruption before the first image.
         return combine_results(results) or self.processing.Processed(p, [], p.seed, "Interrupted")
 
@@ -120,6 +128,9 @@ class JobHooks:
             if options.run_multiple:
                 # Each child re-enters for its ramp, but cannot expand again.
                 return hooks.sequence(p, options, lambda child: inner(child, *args, **kwargs))
+            progress = getattr(p, "_neo_shift_progress", None)
+            if progress is not None:
+                progress.before_image(p)
             p.extra_generation_params = dict(p.extra_generation_params)
             p.extra_generation_params.update(metadata(options, []))
             if options.enabled and hasattr(p, "hr_distilled_cfg"):
@@ -154,7 +165,7 @@ class JobHooks:
                 options = options_for(p)
                 prepare_request(p, options)
                 if args and args[0] and options.run_multiple:
-                    return hooks.sequence(p, options, lambda child: original_run(runner, child, *args))
+                    return hooks.sequence(p, options, lambda child: original_run(runner, child, *args), scripted=True)
             return original_run(runner, p, *args)
 
         original_sigmas = self.sampler_class.get_sigmas

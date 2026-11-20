@@ -10,8 +10,8 @@ SHIFT_IDS = {
     "img2img_distilled_cfg_scale",
 }
 SHIFT_INFO = (
-    "Krea 2 timestep shift (mu / log scale). Default 1.15; 0 is unshifted. "
-    "Not CFG. Comfy AuraFlow shift 4 corresponds to mu 1.3863."
+    "Default: 1.15. In general, try lower Shift for sharper detail "
+    "or higher Shift for a smoother finish."
 )
 
 
@@ -66,7 +66,7 @@ class Runtime:
 
     def patch(self, target, name, replacement):
         own = name in vars(target)
-        original = getattr(target, name)
+        original = getattr(target, name, None)
         self.patches.append((target, name, own, original, replacement))
         setattr(target, name, replacement)
 

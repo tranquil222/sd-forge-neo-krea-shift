@@ -46,6 +46,12 @@ def model_loaded(engine):
         _runtime.model_loaded(engine)
 
 
+def app_started(demo, app):
+    if _runtime is not None:
+        from neo_krea_shift.queue_compat import install as install_queue
+        install_queue(_runtime)
+
+
 def uninstall():
     global _runtime
     if _runtime is not None:
@@ -56,6 +62,7 @@ def uninstall():
 script_callbacks.on_before_ui(install)
 script_callbacks.on_after_component(after_component)
 script_callbacks.on_model_loaded(model_loaded)
+script_callbacks.on_app_started(app_started)
 script_callbacks.on_script_unloaded(uninstall)
 
 

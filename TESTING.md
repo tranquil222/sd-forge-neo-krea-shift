@@ -1,5 +1,11 @@
 # Validation
 
+## Release 0.4.1
+
+**41 CPU checks passed locally**, including the optional custom IIB and real Neo Queue integration tests. Coverage includes four 14-step runs reporting 56 total steps and distinct current rows, multiple-image batches plus Hires, captured batch settings not being multiplied twice, normal Generate, disabled panels, removed rows, requeue seed patterns, native prompt XYZ counts and exact XYZ step totals. Temporary progress hooks are restored after exceptions. The 9 progress/queue checks also passed against the development copy's Queue installation; the 21 job checks passed against the main-copy source snapshot.
+
+Browser checks verify the new control order, simplified Shift help text, greyed-out overrides, and existing PNG/IIB restoration. These checks do not run GPU inference. To enable the optional real-Queue tests, set `KREA_SHIFT_QUEUE_ROOT` to a compatible Neo Queue extension folder; all queue files created by those tests live in a temporary directory, not the user's queue.
+
 ## Release 0.4.0
 
 Adds the native Forge header enable checkbox, collapsed Hires/details, visibly disabled overridden values, and the **Shift from values** label when multiple runs each use a ramp. Disabled panels bypass their fixed/list/ramp settings without validating inactive inputs. Metadata restores enabled/disabled state, actual Shift and Hires values, and applicable ramp settings; old Krea PNGs remain compatible.

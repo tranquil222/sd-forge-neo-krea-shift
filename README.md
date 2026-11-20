@@ -6,6 +6,8 @@ The plugin supplies its own **Fixed Shift** and **Hires. fix Shift** value field
 
 **0.4.0:** The **Krea2 Shift** header has an enable checkbox (off by default). When off, the plugin's fixed/list/ramp settings are bypassed; Forge's native Shift/API/X/Y/Z values are left alone. The checkbox state is saved and restored from image metadata. Hires controls and explanations are under the collapsed **Hires. fix & details** section.
 
+**0.4.1:** Run Multiple now uses one overall progress total, including batches, Hires and nested prompt XYZ plots. With the compatible Neo Queue extension installed, each generated image has its own queue row and the entire Shift list is included in queued step totals. **Run Multiple** sits below **Change during sampling** and its transition controls.
+
 With the panel enabled, **Run Multiple** and **Change during sampling** are independent checkboxes. Enable both to ramp every listed starting Shift toward the shared **Shift to** value; the list label changes to **Shift from values**. Fixed Shift is disabled and visibly greyed out whenever either option overrides it. With both off, **Fixed Shift** is used. The separate From field is also greyed out when the list supplies it.
 
 ## Install
@@ -52,7 +54,9 @@ Use a fixed seed for comparison. Save the individual images if you want each ima
 
 Under **Krea2 Shift**, enable **Run Multiple**, then enter `0.5, 0.65, 1.15` in **Shift values**. The list multiplies the existing batch count/size; with both set to 1, it produces one image per value. A random starting seed is resolved once and reused across values for comparison.
 
-You can still select **X/Y/Z plot** and use its axes for prompts or other settings. Each Shift gets a **complete plot**, with its own saved individual images. Do not also use the native Shift axis in that plot: that axis overrides the list's Shift. Hires. fix Shift remains separate. Interrupt keeps completed results; progress is shown per run/plot, not as one combined job.
+You can still select **X/Y/Z plot** and use its axes for prompts or other settings. Each Shift gets a **complete plot**, with its own saved individual images. Do not also use the native Shift axis in that plot: that axis overrides the list's Shift. Hires. fix Shift remains separate. Interrupt keeps completed results. Native progress counts the complete list instead of reaching 100% after its first run.
+
+For example, four Shift values at 14 steps (batch count/size 1, no Hires) mean **56 total steps**, with a separate 14-step sampling pass for each image. The optional Neo Queue adapter plans distinct image rows at capture time, preserves their previews/results, supports removal of future rows, and keeps the comparison seed pattern when requeued. It does not modify Neo Queue files or remove that extension's existing restrictions on selectable scripts. Without Neo Queue, the ordinary Forge progress display still counts the full Shift list.
 
 Enable **Change during sampling** at the same time to run, for example, `0.5 → 2`, `0.65 → 2`, and `1.15 → 2` with **Shift to = 2**. The list supplies each **Shift from**, so the individual From box is disabled while Run Multiple is on. All runs share the chosen transition and Hires behavior.
 

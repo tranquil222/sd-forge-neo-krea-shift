@@ -71,6 +71,7 @@ class JobTests(unittest.TestCase):
         self.sampler.add_infotext = lambda p: None
         self.sampler.s_min_uncond, self.sampler.callback_state = 0, None
         self.seen = []
+        self.progress_seen = []
         self.processing = module("_processing", random=random)
         definitions("processing.py", {"get_fixed_seed", "fix_seed"}, self.processing)
         self.processing.process_images_inner = self.generate
@@ -88,6 +89,7 @@ class JobTests(unittest.TestCase):
             sampler_noise_scheduler_override=None, denoising_strength=.5, script_args=[], scripts=None)
 
     def generate(self, p):
+        self.progress_seen.append(getattr(self.e.shared.state,"job_count",None))
         self.engine.set_shift(p.distilled_cfg_scale)
         sigmas = self.sampler.sample(p, torch.zeros(1, 4, 2, 2), None, None)
         text = generated_infotext(self.e, p.distilled_cfg_scale, extra=p.extra_generation_params)
@@ -222,6 +224,7 @@ class JobTests(unittest.TestCase):
             self.p._neo_krea_shift_options=Options(mode=RAMP if changing else FIXED,
                 multiple=True,values="0,.65,2",end=1.15)
             result=runner.run(self.p,1)
+            self.assertEqual(self.progress_seen[-6:],[6]*6)
             self.assertEqual([(r[0],r[1]) for r in self.seen],
                 [(prompt,shift) for shift in (0,.65,2) for prompt in ("red","blue")])
             self.assertEqual(len(result.images),12)  # main grid + subgrid + two cells, for EACH shift
@@ -278,7 +281,7 @@ class JobTests(unittest.TestCase):
         self.e.runtime.uninstall()
         callbacks={}
         cb=module("modules.script_callbacks")
-        for name in ("before_ui","after_component","model_loaded","script_unloaded"):
+        for name in ("before_ui","after_component","model_loaded","script_unloaded","app_started"):
             setattr(cb,"on_"+name,lambda fn,name=name:callbacks.update({name:fn}))
         scripts=module("modules.scripts", Script=type("Script",(),{}), AlwaysVisible=object(), ScriptRunner=self.Runner)
         common=module("modules.sd_samplers_common", setup_img2img_steps=self.hooks.img2img_steps)

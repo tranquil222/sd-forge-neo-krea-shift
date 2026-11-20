@@ -11,12 +11,6 @@ def controls(gr, is_img2img=False):
         fixed = gr.Number(label="Fixed Shift", value=DEFAULT_SHIFT, minimum=0, maximum=24,
                           step=.01, interactive=False, info=SHIFT_INFO, elem_id=f"{prefix}_krea_shift_fixed",
                           elem_classes=["krea-shift-value"])
-        multiple = gr.Checkbox(label="Run Multiple", value=False, interactive=True,
-                              elem_id=f"{prefix}_krea_shift_multiple")
-        values = gr.Textbox(label="Shift values", value="", visible=False, interactive=True,
-            elem_id=f"{prefix}_krea_shift_values",
-            placeholder="Enter comma-separated Shift values, e.g. 0.5, 0.65, 1.15",
-            info="One run per value with the same starting seed. With Change during sampling enabled, each value is Shift from; every run ends at Shift to. Prompt X/Y/Z stays available.")
         changing = gr.Checkbox(label="Change during sampling", value=False, interactive=True,
                               elem_id=f"{prefix}_krea_shift_changing")
         with gr.Column(visible=False) as ramp:
@@ -32,6 +26,12 @@ def controls(gr, is_img2img=False):
             switch = gr.Slider(0, 100, value=50, step=1, label="Switch at (%)", visible=False, interactive=True,
                               elem_id=f"{prefix}_krea_shift_switch",
                               info="Hold the starting Shift, then switch to the ending Shift at this point in sampling.")
+        multiple = gr.Checkbox(label="Run Multiple", value=False, interactive=True,
+                              elem_id=f"{prefix}_krea_shift_multiple")
+        values = gr.Textbox(label="Shift values", value="", visible=False, interactive=True,
+            elem_id=f"{prefix}_krea_shift_values",
+            placeholder="Enter comma-separated Shift values, e.g. 0.5, 0.65, 1.15",
+            info="One run per value with the same starting seed. With Change during sampling enabled, each value is Shift from; every run ends at Shift to. Prompt X/Y/Z stays available.")
         with gr.Accordion("Hires. fix & details" if not is_img2img else "Details", open=False,
                           elem_id=f"{prefix}_krea_shift_details"):
             hires = gr.Checkbox(label="Apply ramp to Hires. fix too", value=False, visible=not is_img2img, interactive=False,

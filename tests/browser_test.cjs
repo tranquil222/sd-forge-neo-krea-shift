@@ -120,6 +120,11 @@ const path = require('node:path');
     assert.equal(await shift.isEnabled(),false);
     assert.equal(await page.locator('#txt2img_krea_shift_values').getByText('Shift from values',{exact:true}).count(),1);
     assert.equal(await page.locator('#txt2img_krea_shift_from').evaluate(el => getComputedStyle(el).opacity),'0.4');
+    const layoutY = await page.evaluate(() => ['changing','curve','multiple','values'].map(name =>
+      document.getElementById(`txt2img_krea_shift_${name}`).getBoundingClientRect().top));
+    assert.deepEqual([...layoutY].sort((a,b)=>a-b),layoutY,'Change/Transition precede Run Multiple and its list');
+    assert.match(await page.locator('#txt2img_krea_shift_fixed').textContent(),/In general.*lower Shift.*sharper detail/);
+    assert.doesNotMatch(await page.locator('#txt2img_krea_shift_fixed').textContent(),/Comfy|AuraFlow/);
     assert.equal(await page.locator('#txt2img_krea_shift_swap').isEnabled(),false);
     await multiple.uncheck();
     await from.fill('2');
