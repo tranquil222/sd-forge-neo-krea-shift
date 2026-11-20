@@ -1,0 +1,14 @@
+Krea 2 Shift for Forge Neo
+Copyright (c) 2026 tranquil222
+
+This extension integrates with Stable Diffusion WebUI Forge Neo:
+https://github.com/Haoming02/sd-webui-forge-classic
+
+Forge Neo and its upstream projects credit AUTOMATIC1111, lllyasviel,
+Haoming02, and other contributors. The distributed license preserves
+the upstream copyright notices.
+
+Tests download pinned upstream source files into a separate fixture
+directory and execute selected functions. Those source files are not
+bundled in this repository. Infinite Image Browsing is developed by
+zanllp and contributors; it is optional and is not bundled or modified.
