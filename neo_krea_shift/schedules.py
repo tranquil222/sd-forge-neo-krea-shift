@@ -5,7 +5,6 @@ import math
 FIXED = "Fixed"
 VALUES = "One image per value"
 RAMP = "Change during sampling"
-MODES = (FIXED, VALUES, RAMP)
 CURVES = ("Linear", "Smooth ease in/out", "Ease in", "Ease out",
           "Logarithmic", "Exponential", "Hold then switch")
 
@@ -36,27 +35,45 @@ class Options:
     curve: str = "Linear"
     switch: float = 50.0
     hires: bool = False
+    multiple: bool = False
+    fixed: float | None = None
+    hr_fixed: float | None = None
+
+    @property
+    def run_multiple(self):
+        # Retain support for 0.2 API requests, not a mutually exclusive UI mode.
+        return self.multiple or self.mode == VALUES
 
     @classmethod
     def read(cls, *args):
         if not args:
             return cls()
-        if len(args) != 7:
-            raise ValueError("Krea Shift controls changed. Restart Forge and refresh the browser.")
-        mode, values, start, end, curve, switch, hires = args
-        if mode not in MODES:
-            raise ValueError("Choose a valid Krea Shift mode.")
-        if mode == FIXED:
-            return cls()
-        if mode == VALUES:
+        if len(args) == 7:
+            mode, values, start, end, curve, switch, hires = args
+            if mode not in (FIXED, VALUES, RAMP):
+                raise ValueError("Choose a valid Krea2 Shift mode.")
+            multiple, changing = mode == VALUES, mode == RAMP
+            fixed = hr_fixed = None
+        elif len(args) == 10:
+            fixed, multiple, values, changing, start, end, curve, switch, hires, hr_fixed = args
+        else:
+            raise ValueError("Krea2 Shift controls changed. Restart Forge and refresh the browser.")
+        if multiple:
             parse_values(values)
-            return cls(mode=mode, values=str(values))
+        if not changing:
+            return cls(multiple=bool(multiple), values=str(values) if multiple else "",
+                       fixed=shift_value(fixed) if fixed is not None else None,
+                       hr_fixed=shift_value(hr_fixed) if hr_fixed is not None else None)
         if curve not in CURVES:
             raise ValueError("Choose a valid Shift transition curve.")
         switch = float(switch)
         if not math.isfinite(switch) or not 0 <= switch <= 100:
             raise ValueError("Shift switch point must be between 0 and 100 percent.")
-        return cls(mode, "", shift_value(start), shift_value(end), curve, switch, bool(hires))
+        return cls(mode=RAMP, values=str(values) if multiple else "",
+                   start=shift_value(start), end=shift_value(end), curve=curve, switch=switch,
+                   hires=bool(hires), multiple=bool(multiple),
+                   fixed=shift_value(fixed) if fixed is not None else None,
+                   hr_fixed=shift_value(hr_fixed) if hr_fixed is not None else None)
 
     def progression(self, count):
         if count < 1:

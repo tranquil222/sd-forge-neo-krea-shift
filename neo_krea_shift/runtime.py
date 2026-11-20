@@ -72,8 +72,9 @@ class Runtime:
 
     def shift_layout(self, preset):
         if preset == "krea":
-            return dict(visible=True, label="Shift", minimum=0.0,
-                        maximum=24.0, step=0.01, info=SHIFT_INFO)
+            # Keep native fields as the API/XYZ bridge, not visible controls.
+            return dict(visible=False, label="Shift", minimum=0.0,
+                        maximum=24.0, step=0.01, info="")
         visible = self.presets.use_shift(preset)
         result = dict(visible=visible or self.presets.use_distill(preset),
                       label="Shift" if visible else "Distilled CFG Scale",

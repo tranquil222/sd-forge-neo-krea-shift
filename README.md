@@ -1,10 +1,10 @@
-# Krea 2 Shift for Forge Neo
+# Krea2 Shift
 
-Expose Krea 2's **Shift** control in the main **txt2img**, **img2img**, and **Hires. fix** panels of [Forge Neo](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo).
+Self-contained Krea 2 Shift controls for [Forge Neo](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo), in the **Krea2 Shift** extension panel in **txt2img** and **img2img**.
 
-Uses Forge's existing controls and processing fields—not a second, disconnected slider. No model downloads, extra inference dependencies, or edits to Forge source files.
+The plugin supplies its own **Fixed Shift** and **Hires. fix Shift** value fields. It does not require a previously modified Forge or a visible main-row Krea Shift slider. Native processing fields remain the internal bridge for PNG metadata, APIs, and X/Y/Z; the separate main-row controls are hidden for the krea preset. Other models' controls are unchanged. No model downloads, extra inference dependencies, or edits to Forge source files.
 
-**0.2.0 adds separate Shift comparisons and experimental within-image Shift ramps.** Open **Krea Shift options** in txt2img or img2img. The normal Shift slider remains the control for fixed Shift.
+**0.3.0:** **Run Multiple** and **Change during sampling** are independent checkboxes. Enable both to ramp every listed starting Shift toward the shared **Shift to** value. With both off, the plugin's **Fixed Shift** value is used.
 
 ## Install
 
@@ -25,12 +25,12 @@ Requires a recent **Neo branch with native Krea 2 support and `PredictionFlux`**
 | Feature | Behavior |
 | --- | --- |
 | txt2img / img2img | Shift changes Krea's actual sampling schedule. |
-| Hires. fix | Uses the separate native Hires Shift value. |
+| Hires. fix | Uses the plugin's separate Hires. fix Shift value, unless its ramp option is enabled. |
 | PNG metadata | Forge writes `Shift` and, when applicable, `Hires Shift`. |
 | PNG Info → Send to txt2img / img2img | Restores saved values, including zero and decimals. |
 | Stock Infinite Image Browsing | Its ordinary **Send to txt2img** and **Send to img2img** metadata paths use the same native fields. No IIB modification required. |
 | X/Y/Z plot | Use the existing **Shift** axis. Each cell changes the actual schedule and saves its own value. |
-| Preset changes | Manual selection still applies preset defaults. A metadata-driven preset change does not overwrite the pasted settings afterward. |
+| Preset changes | Forge's other preset defaults still work. The plugin's own values remain independent; preset callbacks do not overwrite pasted Shift settings. |
 | Comma-separated Shift list | One run per value, preserving order and using the same starting seed. Works alongside a prompt X/Y/Z plot. |
 | Within-image ramp | From → To over the steps actually sampled, in either direction, with seven transition choices. |
 
@@ -48,15 +48,19 @@ Use a fixed seed for comparison. Save the individual images if you want each ima
 
 ## Shift comparisons without occupying X/Y/Z
 
-Under **Krea Shift options**, select **One image per value**, then enter `0.5, 0.65, 1.15` in **Shift values**. The list multiplies the existing batch count/size; with both set to 1, it produces one image per value. A random starting seed is resolved once and reused across values for comparison.
+Under **Krea2 Shift**, enable **Run Multiple**, then enter `0.5, 0.65, 1.15` in **Shift values**. The list multiplies the existing batch count/size; with both set to 1, it produces one image per value. A random starting seed is resolved once and reused across values for comparison.
 
-You can still select **X/Y/Z plot** and use its axes for prompts or other settings. Each Shift gets a **complete plot**, with its own saved individual images. Do not also use the native Shift axis in that plot: that axis overrides the list's Shift. The native Hires Shift remains separate. Interrupt keeps completed results; progress is shown per run/plot, not as one combined job.
+You can still select **X/Y/Z plot** and use its axes for prompts or other settings. Each Shift gets a **complete plot**, with its own saved individual images. Do not also use the native Shift axis in that plot: that axis overrides the list's Shift. Hires. fix Shift remains separate. Interrupt keeps completed results; progress is shown per run/plot, not as one combined job.
 
-An individual list image saves its actual native `Shift`, plus the list as provenance. PNG Info/IIB restores that image in **Fixed** mode, not the whole comparison list.
+Enable **Change during sampling** at the same time to run, for example, `0.5 → 2`, `0.65 → 2`, and `1.15 → 2` with **Shift to = 2**. The list supplies each **Shift from**, so the individual From box is disabled while Run Multiple is on. All runs share the chosen transition and Hires behavior.
+
+An individual list image saves its actual `Shift` and, if used, its own ramp, plus the list as provenance. PNG Info/IIB restores that one image's fixed Shift or ramp and turns **Run Multiple off**, rather than accidentally repeating the whole comparison list.
 
 ## Change Shift within one image
 
-Select **Change during sampling**, then set **Shift from**, **Shift to**, and **Transition**:
+Enable **Change during sampling**, then set **Shift from**, **Shift to**, and **Transition**. This checkbox works with or without **Run Multiple**:
+
+Use the **⇄** button between From and To to reverse the endpoints. It is disabled while Run Multiple supplies the starting values.
 
 - **Linear**: even transition.
 - **Smooth ease in/out**: slower near both ends.
@@ -68,11 +72,11 @@ For example, From `0.5`, To `1.15`, 8 steps combines step spacing from those Shi
 
 This is an **experimental noise-schedule blend**, not CFG scheduling, a model change, or an image blend. Krea Shift determines the noise grid before sampling. Directly splicing grids can make noise increase at a transition. This extension instead takes each interval width from the native grid for that step's Shift, then normalizes those widths across the pass. Noise remains descending and finishes at the native endpoint. The normalization means the ramp is **not identical to part of either fixed-Shift run**. Equal From/To reproduces the native fixed-Shift schedule exactly.
 
-For **img2img**, the ramp spans only the intervals actually sampled and preserves the native starting noise for From. **Apply ramp to Hires. fix too** restarts the ramp over the refinement pass; when unchecked, refinement keeps the separate native Hires Shift. This does not add sampling steps.
+For **img2img**, the ramp spans only the intervals actually sampled and preserves the native starting noise for From. **Apply ramp to Hires. fix too** restarts the ramp over the refinement pass; when unchecked, refinement uses the plugin's **Hires. fix Shift** field. This does not add sampling steps. The native X/Y/Z **Shift** axis can also vary From when a ramp is enabled.
 
 Use a sigma-based sampler, such as **Euler**, with **Simple** or **Beta** for the tested paths. DDIM/PLMS, adaptive samplers that ignore the full sigma grid, and another custom noise-schedule override cannot use the ramp. Fixed Shift and list mode retain the native sampler behavior.
 
-PNG metadata records the mode, endpoints, transition, switch point, Hires option, per-step contributions and `interval-v1` algorithm. **PNG Info and ordinary IIB Send** restore these through the extension's paste fields. Recipients need **version 0.2.0 or later** to reproduce a ramp. Pasting an older/fixed image turns off a previously selected ramp.
+PNG metadata records the mode, endpoints, transition, switch point, Hires option, per-step contributions and `interval-v1` algorithm. **PNG Info and ordinary IIB Send** restore these through the extension's paste fields. Existing 0.2.0 ramp PNGs remain compatible. Pasting an older/fixed image turns off a previously selected ramp. API clients should use the always-on script name **Krea2 Shift** and the current argument order shown in `neo_krea_shift/ui.py`.
 
 ## Shift scale
 

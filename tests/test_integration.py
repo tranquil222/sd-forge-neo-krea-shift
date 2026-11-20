@@ -52,7 +52,7 @@ class IntegrationTests(unittest.TestCase):
         updates = self.e.main.on_preset_change("krea")
         self.assertEqual([u["value"] for u in updates[17:20]], [1.15, .9, .65])
         for u in updates[17:20]:
-            self.assertEqual((u["minimum"], u["step"], u["visible"]), (0, .01, True))
+            self.assertEqual((u["minimum"], u["step"], u["visible"]), (0, .01, False))
         for preset in ("flux", "wan", "sd", "qwen21"):
             result = self.e.main.on_preset_change(preset)
             for u in result[17:20]: self.assertEqual(u["info"], "")
@@ -64,7 +64,7 @@ class IntegrationTests(unittest.TestCase):
         updates = self.e.runtime.layout_only("krea")
         self.assertTrue(all("value" not in u for u in updates))
         self.assertEqual(self.e.shared.opts.forge_preset, "krea")
-        self.assertTrue(updates[17]["visible"])
+        self.assertFalse(updates[17]["visible"])
         self.assertEqual(saves, [])
         self.e.main.on_preset_change("krea")
         self.assertEqual(len(saves), 1)
@@ -143,7 +143,8 @@ class IntegrationTests(unittest.TestCase):
                     self.e, 0, extra=metadata(ramp, ramp.progression(8)))}))
                 mapped = dict(zip((getattr(c,"elem_id",None) for c in outputs),result))
                 self.assertTrue(json.loads(result[-1])["ok"])
-                self.assertEqual(mapped["txt2img_krea_shift_mode"]["value"],RAMP)
+                self.assertTrue(mapped["txt2img_krea_shift_changing"]["value"])
+                self.assertEqual(mapped["txt2img_krea_shift_fixed"]["value"],0)
                 self.assertEqual(mapped["txt2img_krea_shift_to"]["value"],2)
                 self.assertEqual(mapped["txt2img_krea_shift_switch"]["value"],70)
 

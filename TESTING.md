@@ -1,5 +1,15 @@
 # Validation
 
+## Release 0.3.0
+
+Adds plugin-owned Fixed Shift and Hires. fix Shift fields, independent Run Multiple / Change during sampling checkboxes, and the **Krea2 Shift** panel name. The main-row Krea controls are hidden without changing other models' controls or editing Forge core.
+
+The CPU suite additionally checks that the plugin field overrides an unrelated hidden-row value, every multiple-run item can have its own ramp, the combined mode works through stock prompt XYZ, native Shift XYZ axes still override the starting value, and a selected sweep image restores only its own settings through PNG Info/IIB. The browser harness checks the panel name, hidden native controls, fixed field, both checkboxes enabled together, and metadata restoration.
+
+**29 CPU checks passed locally**, including custom IIB, plus the browser checks and bidirectional From/To swap. The 18 job/schedule checks also passed against source snapshots of both local Forge installations (the customized main-copy test harness additionally supplies its existing inpaint metadata helper and XYZ images-only flag).
+
+No GPU image-quality comparison is implied by these integration checks.
+
 ## Release 0.2.0
 
 The same pinned Neo/IIB source revisions below are used. Tests execute the actual native sigma scheduler, txt2img/img2img sampler plumbing, ScriptRunner, XYZ cell/grid loop, and PNG parser/paste code on CPU. Heavyweight model inference is replaced by a small stub that captures the schedule delivered to the sampler.

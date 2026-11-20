@@ -33,8 +33,9 @@ iib = module("_test_iib", gr=gr, Image=Image, send=env.info, locale="en",
 definitions("iib_tool.py", {"read_sd_webui_gen_info_from_image"}, iib)
 definitions("iib_setup.py", {"on_ui_tabs"}, iib)
 
-with gr.Blocks(analytics_enabled=False) as demo:
-    gr.Markdown("Krea Shift integration test — stock Neo functions / stock IIB bridge")
+with gr.Blocks(analytics_enabled=False,
+               css=(Path(__file__).resolve().parents[1]/"style.css").read_text()) as demo:
+    gr.Markdown("Krea2 Shift integration test — stock Neo functions / stock IIB bridge")
     preset = gr.Dropdown(["krea", "flux"], value="krea", label="UI Preset", elem_id="forge_ui_preset")
     env.runtime.after_component(preset)
     targets = [gr.Textbox(visible=False) for _ in range(17)]

@@ -1,0 +1,8 @@
+.krea-shift-endpoints {
+    align-items: flex-end !important;
+}
+.krea-shift-endpoints .krea-shift-swap {
+    flex: 0 0 44px !important;
+    min-height: 42px;
+    align-self: flex-end;
+}

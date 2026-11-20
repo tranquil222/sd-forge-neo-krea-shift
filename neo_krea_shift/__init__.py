@@ -1,3 +1,3 @@
-"""Krea 2 Shift for Forge Neo."""
+"""Krea2 Shift for Forge Neo."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

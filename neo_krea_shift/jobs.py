@@ -1,21 +1,41 @@
 """Per-request list expansion and per-sampling-pass ramp integration."""
 from copy import copy
+from dataclasses import replace
 from functools import wraps
 import inspect
 
 from .runtime import set_krea_shift
-from .schedules import Options, FIXED, VALUES, RAMP, blend_intervals, metadata, parse_values
+from .schedules import Options, FIXED, RAMP, blend_intervals, metadata, parse_values, shift_value
 
 
 def options_for(p):
     override = getattr(p, "_neo_krea_shift_options", None)
-    if override is not None:
-        return override
-    runner = getattr(p, "scripts", None)
-    for script in getattr(runner, "alwayson_scripts", ()):
-        if getattr(script, "neo_krea_shift_controls", False):
-            return Options.read(*p.script_args[script.args_from:script.args_to])
-    return Options()
+    options = override
+    if options is None:
+        runner = getattr(p, "scripts", None)
+        for script in getattr(runner, "alwayson_scripts", ()):
+            if getattr(script, "neo_krea_shift_controls", False):
+                options = Options.read(*p.script_args[script.args_from:script.args_to])
+                break
+    options = options or Options()
+    # Native XYZ axes run after preparation. A Shift axis varies ramp From;
+    # prompt-only axes leave the prepared starting value unchanged.
+    if options.mode == RAMP and getattr(p, "_neo_shift_prepared", False) and getattr(p, "is_xyz_pass", False):
+        options = replace(options, start=shift_value(p.distilled_cfg_scale))
+    return options
+
+
+def prepare_request(p, options):
+    """Apply plugin fields once, before selectable scripts apply their axes."""
+    if getattr(p, "_neo_shift_prepared", False):
+        return
+    if options.mode == RAMP:
+        p.distilled_cfg_scale = options.start
+    elif options.fixed is not None:
+        p.distilled_cfg_scale = options.fixed
+    if options.hr_fixed is not None and hasattr(p, "hr_distilled_cfg"):
+        p.hr_distilled_cfg = options.hr_fixed
+    p._neo_shift_prepared = True
 
 
 def clone_job(p, options):
@@ -73,9 +93,12 @@ class JobHooks:
             state = self.runtime.shared.state
             if getattr(state, "interrupted", False) or getattr(state, "stopping_generation", False):
                 break
-            child = clone_job(p, Options())
+            child_options = replace(options, mode=RAMP if options.mode == RAMP else FIXED,
+                                    multiple=False, values="", fixed=value,
+                                    start=value if options.mode == RAMP else options.start)
+            child = clone_job(p, child_options)
             child.distilled_cfg_scale = value
-            child.extra_generation_params["Krea Shift mode"] = FIXED
+            child.extra_generation_params["Krea Shift mode"] = child_options.mode
             child.extra_generation_params["Krea Shift list"] = options.values
             part = callback(child)
             if part is not None:
@@ -93,8 +116,10 @@ class JobHooks:
             if not hooks.is_krea(p):
                 return original_inner(p, *args, **kwargs)
             options = options_for(p)
-            if options.mode == VALUES:
-                return hooks.sequence(p, options, lambda child: original_inner(child, *args, **kwargs))
+            prepare_request(p, options)
+            if options.run_multiple:
+                # Each child re-enters for its ramp, but cannot expand again.
+                return hooks.sequence(p, options, lambda child: inner(child, *args, **kwargs))
             if options.mode == RAMP:
                 names = [getattr(p, "sampler_name", "")]
                 if options.hires and getattr(p, "enable_hr", False):
@@ -122,9 +147,10 @@ class JobHooks:
             # Loop OUTSIDE selectable scripts. Stock XYZ only keeps one image per
             # cell: returning a hidden batch inside a cell would lose comparisons.
             # Each list entry instead gets its own complete prompt XYZ grid.
-            if args and args[0] and getattr(runtime.shared.opts, "forge_preset", None) == "krea":
+            if getattr(runtime.shared.opts, "forge_preset", None) == "krea":
                 options = options_for(p)
-                if options.mode == VALUES:
+                prepare_request(p, options)
+                if args and args[0] and options.run_multiple:
                     return hooks.sequence(p, options, lambda child: original_run(runner, child, *args))
             return original_run(runner, p, *args)
 

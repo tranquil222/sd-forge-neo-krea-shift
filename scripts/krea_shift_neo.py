@@ -29,7 +29,7 @@ def install():
         JobHooks(runtime, processing, scripts, KDiffusionSampler,
                  sd_samplers_common.setup_img2img_steps).install()
         _runtime = runtime
-        logging.getLogger(__name__).info("Krea Shift enabled: native mu, lists, per-step ramps, PNG/IIB and XYZ.")
+        logging.getLogger(__name__).info("Krea2 Shift enabled: fixed Shift, multiple runs, per-step ramps, PNG/IIB and XYZ.")
     except (ImportError, AttributeError) as error:
         if runtime is not None:
             runtime.uninstall()
@@ -63,7 +63,7 @@ class Script(scripts.Script):
     neo_krea_shift_controls = True
 
     def title(self):
-        return "Krea Shift options"
+        return "Krea2 Shift"
 
     def show(self, is_img2img):
         return scripts.AlwaysVisible

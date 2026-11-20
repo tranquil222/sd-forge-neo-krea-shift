@@ -148,7 +148,7 @@ class JobTests(unittest.TestCase):
         self.ramp(start=0, end=2, hires=True)
         self.processing.process_images_inner(self.p)
         self.assertIn("Hires Krea Shift steps", self.p.extra_generation_params)
-        self.assertEqual(self.p.distilled_cfg_scale, .9)
+        self.assertEqual(self.p.distilled_cfg_scale, 0)
         self.assertEqual(self.p.hr_distilled_cfg, 1.39)
 
     def test_one_step_and_penultimate_discard(self):
@@ -174,11 +174,16 @@ class JobTests(unittest.TestCase):
         params = self.e.info.parse_generation_parameters(result.infotexts[0])
         with gr.Blocks():
             _, fields = controls(gr)
-        pasted = Options.read(*(fn(params) for _,fn in fields))
-        self.assertEqual(pasted, self.p._neo_krea_shift_options)
+        def restore(data):
+            return Options.read(*(fn(data) if callable(fn) else data.get(fn,c.value) for c,fn in fields))
+        pasted = restore(params)
+        for attr in ("mode","start","end","curve","switch","hires"):
+            self.assertEqual(getattr(pasted,attr),getattr(self.p._neo_krea_shift_options,attr))
+        self.assertEqual(pasted.fixed,0)
         self.assertEqual(params["Krea Shift algorithm"], "interval-v1")
         old = self.e.info.parse_generation_parameters(generated_infotext(self.e, .65))
-        self.assertEqual(Options.read(*(fn(old) for _,fn in fields)).mode, FIXED)
+        self.assertEqual(restore(old).mode, FIXED)
+        self.assertEqual(restore(old).fixed,.65)
 
     def test_list_uses_same_seed_every_output_has_own_native_metadata(self):
         self.p.seed = self.p.subseed = -1
@@ -212,12 +217,21 @@ class JobTests(unittest.TestCase):
             exec(compile(ast.Module(body=[cell],type_ignores=[]),"<native XYZ>","exec"),ns.__dict__)
             return ns.draw_xyz_grid(p, ns.xs, [None],[None], ns.xs,[""],[""],ns.cell,False,True,False,"x","y",0)
         runner.selectable_scripts=[NS(args_from=1,args_to=1,run=plot)]
-        result=runner.run(self.p,1)
-        self.assertEqual([(r[0],r[1]) for r in self.seen],
-            [(prompt,shift) for shift in (0,.65,2) for prompt in ("red","blue")])
-        self.assertEqual(len(result.images),12)  # main grid + subgrid + two cells, for EACH shift
-        self.assertEqual(len(result.infotexts),12)
-        self.assertEqual(len(result.all_seeds),12)
+        for changing in (False,True):
+            self.seen.clear()
+            self.p._neo_krea_shift_options=Options(mode=RAMP if changing else FIXED,
+                multiple=True,values="0,.65,2",end=1.15)
+            result=runner.run(self.p,1)
+            self.assertEqual([(r[0],r[1]) for r in self.seen],
+                [(prompt,shift) for shift in (0,.65,2) for prompt in ("red","blue")])
+            self.assertEqual(len(result.images),12)  # main grid + subgrid + two cells, for EACH shift
+            self.assertEqual(len(result.infotexts),12)
+            self.assertEqual(len(result.all_seeds),12)
+            if changing:
+                for row in self.seen:
+                    params=self.e.info.parse_generation_parameters(row[4])
+                    self.assertEqual(float(params["Krea Shift from"]),row[1])
+                    self.assertEqual(float(params["Krea Shift to"]),1.15)
 
     def test_interruption_keeps_finished_list_results(self):
         original=self.processing.process_images_inner
@@ -246,12 +260,12 @@ class JobTests(unittest.TestCase):
         self.p.sampler_name="DDIM"
         with self.assertRaisesRegex(ValueError,"DDIM/PLMS"):
             self.processing.process_images_inner(self.p)
-        self.assertEqual(self.p.distilled_cfg_scale,.9)
+        self.assertEqual(self.p.distilled_cfg_scale,0)
         self.p.sampler_name="Euler"
         self.p.sampler_noise_scheduler_override=lambda n:torch.zeros(n+1)
         with self.assertRaisesRegex(ValueError,"override"):
             self.processing.process_images_inner(self.p)
-        self.assertEqual(self.p.distilled_cfg_scale,.9)
+        self.assertEqual(self.p.distilled_cfg_scale,0)
         self.assertEqual(self.p.hr_distilled_cfg,1.39)
 
     def test_invalid_lists_and_hidden_fields(self):
@@ -286,11 +300,67 @@ class JobTests(unittest.TestCase):
             self.addCleanup(entry.uninstall)
             with gr.Blocks():
                 script=entry.Script()
-                self.assertEqual(len(script.ui(False)),7)
-                self.assertEqual(len(script.infotext_fields),7)
+                self.assertEqual(script.title(),"Krea2 Shift")
+                self.assertEqual(len(script.ui(False)),10)
+                self.assertEqual(len(script.infotext_fields),10)
             self.assertTrue(self.e.engine().use_shift)
             callbacks["script_unloaded"]()
             self.assertFalse(self.e.engine().use_shift)
+
+    def test_plugin_fixed_field_is_independent_of_hidden_native_value(self):
+        self.p._neo_krea_shift_options=Options(fixed=.65,hr_fixed=.5)
+        self.p.distilled_cfg_scale=9
+        self.processing.process_images_inner(self.p)
+        self.assertEqual(self.seen[0][1],.65)
+        self.assertEqual(self.p.hr_distilled_cfg,.5)
+        self.assertEqual(float(self.e.info.parse_generation_parameters(self.seen[0][4])["Distilled CFG Scale"]),.65)
+
+    def test_run_multiple_can_ramp_every_image_and_restore_one_result(self):
+        self.p._neo_krea_shift_options=Options(mode=RAMP,multiple=True,values="0,.65,2",
+            start=9,end=1.15,fixed=8,hr_fixed=.5,hires=True)
+        result=self.processing.process_images_inner(self.p)
+        self.assertEqual(len(result.images),3)
+        self.assertEqual([r[1] for r in self.seen],[0,.65,2])
+        self.assertEqual(len({r[2] for r in self.seen}),1)
+        with gr.Blocks():
+            _,fields=controls(gr)
+        for row,mu in zip(self.seen,(0,.65,2)):
+            params=self.e.info.parse_generation_parameters(row[4])
+            self.assertEqual(params["Krea Shift mode"],RAMP)
+            self.assertEqual(float(params["Krea Shift from"]),mu)
+            self.assertEqual(float(params["Krea Shift to"]),1.15)
+            self.assertEqual(float(params["Krea Shift steps"].split(", ")[0]),mu)
+            restored=Options.read(*(fn(params) if callable(fn) else params.get(fn,c.value) for c,fn in fields))
+            self.assertFalse(restored.run_multiple)
+            self.assertEqual(restored.mode,RAMP)
+            self.assertEqual(restored.start,mu)
+        self.assertFalse(torch.equal(self.seen[0][3],self.seen[1][3]))
+
+    def test_native_xyz_axis_overrides_plugin_fixed_and_ramp_start(self):
+        axis=module("_axis")
+        definitions("xyz_grid.py",{"apply_field"},axis)
+        def run_axis(p):
+            child=copy(p)
+            child.is_xyz_pass=True
+            axis.apply_field("distilled_cfg_scale")(child,.65,[.65])
+            return self.processing.process_images_inner(child)
+        runner=self.Runner()
+        runner.selectable_scripts=[NS(args_from=1,args_to=1,run=run_axis)]
+        for changing in (False,True):
+            if hasattr(self.p,"_neo_shift_prepared"):del self.p._neo_shift_prepared
+            self.p._neo_krea_shift_options=Options(fixed=9,mode=RAMP if changing else FIXED,start=2,end=1)
+            runner.run(self.p,1)
+            self.assertEqual(self.seen[-1][1],.65)
+            if changing:
+                params=self.e.info.parse_generation_parameters(self.seen[-1][4])
+                self.assertEqual(float(params["Krea Shift from"]),.65)
+
+    def test_independent_checkboxes_parse_both_enabled(self):
+        options=Options.read(.9,True,"0,.5,2",True,.25,1.15,"Linear",50,True,.65)
+        self.assertTrue(options.run_multiple)
+        self.assertEqual(options.mode,RAMP)
+        self.assertEqual(options.fixed,.9)
+        self.assertEqual(options.hr_fixed,.65)
 
 
 if __name__=="__main__":unittest.main()
