@@ -59,10 +59,15 @@ class IntegrationTests(unittest.TestCase):
 
     def test_programmatic_preset_change_keeps_pasted_values(self):
         self.e.shared.opts.forge_preset = "flux"
+        saves = []
+        self.e.shared.opts.save = lambda *args: saves.append(args)
         updates = self.e.runtime.layout_only("krea")
         self.assertTrue(all("value" not in u for u in updates))
         self.assertEqual(self.e.shared.opts.forge_preset, "krea")
         self.assertTrue(updates[17]["visible"])
+        self.assertEqual(saves, [])
+        self.e.main.on_preset_change("krea")
+        self.assertEqual(len(saves), 1)
 
     def test_png_file_roundtrip_native_parser_and_slider_conversion(self):
         shift = gr.Slider(minimum=0, maximum=24, step=.01, value=1.15)

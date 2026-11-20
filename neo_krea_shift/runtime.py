@@ -101,11 +101,19 @@ class Runtime:
         return result
 
     def layout_only(self, preset):
-        # Keep Neo's preset bookkeeping and layout (including video controls),
-        # but never replace pasted generation values with preset defaults.
-        result = self.preset_callback(preset)
-        return [{key: value for key, value in update.items() if key != "value"}
-                for update in result]
+        # .input() and .change() both fire on manual selection. Do not call the
+        # original handler here: that would save config twice concurrently.
+        # Programmatic pastes need the active preset and layout, not defaults.
+        self.shared.opts.set("forge_preset", preset)
+        result = [self.gr.skip() for _ in range(22)]
+        for i in range(17, 20):
+            result[i] = self.gr.update(**self.shift_layout(preset))
+        fps = self.presets.is_video(preset)
+        batch = (dict(minimum=1, maximum=fps * 15 + 1, step=fps, label="Frames")
+                 if fps > 1 else dict(minimum=1, maximum=8, step=1, label="Batch Size"))
+        for i in (20, 21):
+            result[i] = self.gr.update(**batch)
+        return result
 
     def install(self):
         if self.patches:
