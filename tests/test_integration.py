@@ -120,12 +120,17 @@ class IntegrationTests(unittest.TestCase):
         adapter = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(adapter)
         self.e.info.get_override_settings = lambda *a, **kw: []
+        from neo_krea_shift.ui import controls
+        from neo_krea_shift.schedules import Options, RAMP, metadata
+        with gr.Blocks():
+            _, ramp_fields = controls(gr)
+        ramp = Options(mode=RAMP, start=0, end=2, curve="Hold then switch", switch=70)
         for legacy in (False, True):
             for value in (0, .65, 1.39, 4.02):
                 shift = gr.Slider(0, 24, value=9, step=.01, elem_id="txt2img_distilled_cfg_scale")
                 hires = gr.Slider(0, 24, value=9, step=.01, elem_id="txt2img_hr_distilled_cfg")
                 preset = gr.Dropdown(["krea", "flux"], value="flux", elem_id="forge_ui_preset")
-                fields = [(shift, "Distilled CFG Scale"), (hires, "Hires Distilled CFG Scale"), (preset, "UI preset")]
+                fields = [(shift, "Distilled CFG Scale"), (hires, "Hires Distilled CFG Scale"), (preset, "UI preset")] + ramp_fields
                 handler, outputs = adapter.make_metadata_handler(
                     self.e.info, NS(infotext_pasted_callback=lambda *a: None), gr,
                     {"fields": fields}, keep_model=legacy)
@@ -134,6 +139,13 @@ class IntegrationTests(unittest.TestCase):
                 mapped = dict(zip((getattr(c, "elem_id", None) for c in outputs), result))
                 self.assertEqual(mapped[shift.elem_id]["value"], value)
                 self.assertEqual(mapped[hires.elem_id]["value"], .9)
+                result = handler(json.dumps({"requestId":"ramp", "infotext":generated_infotext(
+                    self.e, 0, extra=metadata(ramp, ramp.progression(8)))}))
+                mapped = dict(zip((getattr(c,"elem_id",None) for c in outputs),result))
+                self.assertTrue(json.loads(result[-1])["ok"])
+                self.assertEqual(mapped["txt2img_krea_shift_mode"]["value"],RAMP)
+                self.assertEqual(mapped["txt2img_krea_shift_to"]["value"],2)
+                self.assertEqual(mapped["txt2img_krea_shift_switch"]["value"],70)
 
     def test_stock_xyz_cell_and_loop_apply_each_shift_and_preserve_metadata(self):
         # Execute the upstream cell body and grid loop, not a reimplementation.

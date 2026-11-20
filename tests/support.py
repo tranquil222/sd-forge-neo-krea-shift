@@ -110,7 +110,7 @@ def infotext(shift=0.65, hires=1.39, preset="krea"):
     return text
 
 
-def generated_infotext(env, shift, hires=None):
+def generated_infotext(env, shift, hires=None, extra=None):
     """Actual upstream PNG infotext writer, with a minimal processing record."""
     opts = env.shared.opts
     defaults = dict(CLIP_stop_at_last_layers=1, eta_noise_seed_delta=0,
@@ -131,6 +131,7 @@ def generated_infotext(env, shift, hires=None):
         is_using_inpainting_conditioning=False, extra_generation_params={"UI preset": "krea"})
     if hires is not None:
         p.extra_generation_params["Hires Shift"] = hires
+    p.extra_generation_params.update(extra or {})
     ns = module("_test_processing", opts=opts, shared=env.shared, os=os,
         _overridden_modules=[], infotext_utils=env.info, program_version=lambda: "neo-2.32")
     definitions("processing.py", {"create_infotext"}, ns)

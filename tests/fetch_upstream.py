@@ -14,6 +14,10 @@ REPOS = {
         "infotext_utils.py": "modules/infotext_utils.py",
         "processing.py": "modules/processing.py",
         "xyz_grid.py": "scripts/xyz_grid.py",
+        "sd_samplers_kdiffusion.py": "modules/sd_samplers_kdiffusion.py",
+        "sd_schedulers.py": "modules/sd_schedulers.py",
+        "sd_samplers_common.py": "modules/sd_samplers_common.py",
+        "scripts.py": "modules/scripts.py",
     }),
     "iib": ("zanllp/infinite-image-browsing", "main", {
         "iib_setup.py": "scripts/iib_setup.py",

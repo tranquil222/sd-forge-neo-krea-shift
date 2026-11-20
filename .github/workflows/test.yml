@@ -11,7 +11,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cpu
-      - run: pip install gradio==4.40.0 'huggingface_hub<1' 'numpy<2' Pillow
+      - run: pip install gradio==4.40.0 'huggingface_hub<1' 'numpy<2' Pillow scipy
       - run: python tests/fetch_upstream.py upstream
       - run: python -m unittest discover -s tests -v
         env:

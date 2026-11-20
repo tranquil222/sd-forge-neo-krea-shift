@@ -1,5 +1,25 @@
 # Validation
 
+## Release 0.2.0
+
+The same pinned Neo/IIB source revisions below are used. Tests execute the actual native sigma scheduler, txt2img/img2img sampler plumbing, ScriptRunner, XYZ cell/grid loop, and PNG parser/paste code on CPU. Heavyweight model inference is replaced by a small stub that captures the schedule delivered to the sampler.
+
+Additional checks cover:
+
+- Ascending/descending ramps for every curve, including zero and extreme endpoints, using native Simple and Beta schedules.
+- Descending finite sigma grids ending at zero; equal endpoints exactly reproduce native fixed Shift.
+- Real img2img suffix selection, one-step passes, penultimate-sigma removal and separate Hires behavior.
+- Comma-list expansion with matching seeds, saved per-image Shift, interruption preserving completed results, and all Shift × prompt combinations through the stock XYZ path.
+- No ramp/list expansion for non-Krea engines; explicit errors for incompatible ramp sampler/override paths; request fields restored after failures.
+- Ramp settings round-trip through the native infotext writer/parser and always-on paste fields; fixed metadata clears a previous ramp.
+- The optional custom IIB normal and legacy handlers restore ramp settings too.
+
+The browser harness also exercises the new controls, comma placeholder, mode visibility, PNG ramp restoration in both tabs, and complete ramp restoration through stock IIB's reader/bridge. The UI controls are explicitly interactive, including when used as paste destinations.
+
+**25 CPU checks passed locally**, including the optional custom IIB check and extension entrypoint installation/uninstallation. All browser checks passed in headless Chrome with Gradio 4.40.0. Without the custom adapter, its one optional test is skipped.
+
+This validates plumbing and reproducibility metadata, **not the visual quality of composition/texture blending**. No GPU quality comparison was run for the ramp feature.
+
 ## Release 0.1.0
 
 Validated on Windows with Python 3.13.1, PyTorch 2.10.0 and Gradio 4.40.0.
@@ -36,7 +56,7 @@ All browser checks passed. The harness substitutes a file selector for IIB's Vue
 
 ## Reproduce
 
-Use a Python environment with `torch`, `numpy`, `Pillow` and `gradio==4.40.0` (for example, a compatible Neo venv). Run from this repository:
+Use a Python environment with `torch`, `numpy`, `scipy`, `Pillow` and `gradio==4.40.0` (for example, a compatible Neo venv). Run from this repository:
 
 ```powershell
 python tests/fetch_upstream.py upstream

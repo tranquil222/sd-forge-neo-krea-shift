@@ -147,6 +147,13 @@ class Runtime:
         self.patch(self.infotext, "_populate_defaults", defaults)
         self.patch(self.main_entry, "on_preset_change", preset)
         self.preset_callback = preset
+        # Preset-settings sliders need the same zero/decimal support as the main
+        # controls. This replaces the old source edit in presets.register().
+        for key in ("krea_t2i_dcfg", "krea_t2i_hr_dcfg", "krea_i2i_dcfg"):
+            option = getattr(self.shared.opts, "data_labels", {}).get(key)
+            if option is not None and isinstance(option.component_args, dict):
+                self.patch(option, "component_args", dict(option.component_args,
+                    minimum=0.0, maximum=24.0, step=0.01))
 
     def after_component(self, component, **kwargs):
         elem_id = getattr(component, "elem_id", None)
